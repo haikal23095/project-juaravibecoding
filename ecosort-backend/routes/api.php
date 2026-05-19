@@ -14,6 +14,191 @@ Route::post('/auth/google', [AuthController::class, 'googleAuth']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/user/password', [AuthController::class, 'updatePassword']);
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::get('/manager/dashboard', [TransactionController::class, 'managerDashboard']);
+    Route::get('/manager/inventory', [WasteBankController::class, 'managerInventory']);
+    Route::put('/manager/waste-bank', [WasteBankController::class, 'update']);
+    Route::get('/withdrawals', function (Request $request) {
+        $user = $request->user();
+        if ($user->hasRole('bank_sampah')) {
+            $wasteBank = \App\Models\WasteBank::where('manager_id', $user->id)->first();
+            if (!$wasteBank) {
+                return response()->json(['status' => 'success', 'data' => []]);
+            }
+            $withdrawals = \App\Models\Withdrawal::with('user')
+                ->where('waste_bank_id', $wasteBank->id)
+                ->latest()
+                ->get();
+        } else {
+            $withdrawals = \App\Models\Withdrawal::with('wasteBank')
+                ->where('user_id', $user->id)
+                ->latest()
+                ->get();
+        }
+        return response()->json(['status' => 'success', 'data' => $withdrawals]);
+    });
+    Route::patch('/withdrawals/{id}/status', function (Request $request, $id) {
+        $validated = $request->validate([
+            'status' => 'required|in:approved,rejected'
+        ]);
+
+        $withdrawal = \App\Models\Withdrawal::find($id);
+        if (!$withdrawal) {
+            return response()->json(['status' => 'error', 'message' => 'Permintaan penarikan tidak ditemukan.'], 404);
+        }
+
+        if ($withdrawal->status !== 'pending') {
+            return response()->json(['status' => 'error', 'message' => 'Permintaan penarikan ini sudah diproses.'], 400);
+        }
+
+        try {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($withdrawal, $validated) {
+                $withdrawal->update(['status' => $validated['status']]);
+
+                if ($validated['status'] === 'approved') {
+                    $user = $withdrawal->user;
+                    if ($user->balance < $withdrawal->amount) {
+                        throw new \Exception('Saldo nasabah tidak mencukupi untuk penarikan ini.');
+                    }
+                    $user->decrement('balance', $withdrawal->amount);
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Status penarikan berhasil diperbarui.',
+                    'data' => $withdrawal
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    });
+
+    // User wallets
+    Route::get('/user/wallets', function (Request $request) {
+        return response()->json([
+            'status' => 'success',
+            'data' => $request->user()->wallets
+        ]);
+    });
+
+    Route::post('/user/wallets', function (Request $request) {
+        $validated = $request->validate([
+            'bank_name' => 'required|string|max:100',
+            'account_number' => 'required|string|max:50',
+            'account_name' => 'required|string|max:100'
+        ]);
+
+        $user = $request->user();
+        if ($user->wallets()->count() >= 3) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda hanya dapat menambahkan maksimal 3 rekening dompet.'
+            ], 400);
+        }
+
+        $wallet = $user->wallets()->create($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Rekening dompet berhasil ditambahkan.',
+            'data' => $wallet
+        ]);
+    });
+
+    Route::put('/user/wallets/{id}', function (Request $request, $id) {
+        $validated = $request->validate([
+            'bank_name' => 'required|string|max:100',
+            'account_number' => 'required|string|max:50',
+            'account_name' => 'required|string|max:100'
+        ]);
+
+        $wallet = $request->user()->wallets()->find($id);
+        if (!$wallet) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Rekening tidak ditemukan.'
+            ], 404);
+        }
+
+        $wallet->update($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Rekening dompet berhasil diperbarui.',
+            'data' => $wallet
+        ]);
+    });
+
+    Route::delete('/user/wallets/{id}', function (Request $request, $id) {
+        $wallet = $request->user()->wallets()->find($id);
+        if (!$wallet) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Rekening tidak ditemukan.'
+            ], 404);
+        }
+
+        $wallet->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Rekening dompet berhasil dihapus.'
+        ]);
+    });
+
+    // Create user withdrawal
+    Route::post('/withdrawals', function (Request $request) {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:10000',
+            'bank_name' => 'required|string',
+            'account_number' => 'required|string',
+            'account_name' => 'required|string',
+            'waste_bank_id' => 'nullable|exists:waste_banks,id'
+        ]);
+
+        $user = $request->user();
+
+        if ($user->balance < $validated['amount']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Saldo Anda tidak mencukupi untuk melakukan penarikan ini.'
+            ], 400);
+        }
+
+        $wasteBankId = $validated['waste_bank_id'];
+        if (!$wasteBankId) {
+            $defaultBank = \App\Models\WasteBank::where('is_active', true)->first();
+            if (!$defaultBank) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tidak ada bank sampah aktif untuk memproses penarikan Anda saat ini.'
+                ], 400);
+            }
+            $wasteBankId = $defaultBank->id;
+        }
+
+        $withdrawal = \App\Models\Withdrawal::create([
+            'user_id' => $user->id,
+            'waste_bank_id' => $wasteBankId,
+            'amount' => $validated['amount'],
+            'status' => 'pending',
+            'bank_name' => $validated['bank_name'],
+            'account_number' => $validated['account_number'],
+            'account_name' => $validated['account_name']
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Permintaan penarikan berhasil dibuat.',
+            'data' => $withdrawal
+        ]);
+    });
 });
 
 // Waste Bank
@@ -28,9 +213,14 @@ Route::post('/ai/detect', [AiDetectionController::class, 'detect']);
 
 // Users
 Route::get('/users', function () {
+    $users = \App\Models\User::with('roles')->get()->map(function($user) {
+        $user->role = $user->roles->first()?->name ?? 'user';
+        $user->phone_number = $user->phone;
+        return $user;
+    });
     return response()->json([
         'status' => 'success',
-        'data' => \App\Models\User::all()
+        'data' => $users
     ]);
 });
 

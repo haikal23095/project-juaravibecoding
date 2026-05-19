@@ -166,8 +166,80 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone' => $user->phone,
+                'points' => $user->points,
+                'balance' => $user->balance,
+                'scan_count' => $user->scan_count,
+                'created_at' => $user->created_at,
                 'role' => $role
             ]
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user->update([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+        ]);
+
+        $role = 'user';
+        if ($user->hasRole('super_admin')) {
+            $role = 'admin';
+        } else if ($user->hasRole('bank_sampah')) {
+            $role = 'manager';
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profil berhasil diperbarui.',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'points' => $user->points,
+                'balance' => $user->balance,
+                'scan_count' => $user->scan_count,
+                'created_at' => $user->created_at,
+                'role' => $role
+            ]
+        ]);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        // If the user registered via social login and password is null, allow bypass or just let it update
+        if ($user->password && !Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Password lama salah.'
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password)
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Password berhasil diubah.'
         ]);
     }
 }

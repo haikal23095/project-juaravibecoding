@@ -8,18 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('transactions', function (Blueprint $table) {
+        Schema::create('user_wallets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('waste_bank_id')->constrained('waste_banks')->onDelete('cascade');
-            $table->decimal('total_earnings', 12, 2);
-            $table->enum('status', ['pending', 'completed', 'rejected'])->default('pending');
+            $table->string('bank_name');
+            $table->string('account_number');
+            $table->string('account_name');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-    Schema::dropIfExists('transactions');
+        Schema::dropIfExists('user_wallets');
     }
 };

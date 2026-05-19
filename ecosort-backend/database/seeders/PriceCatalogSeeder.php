@@ -32,8 +32,8 @@ class PriceCatalogSeeder extends Seeder
         foreach ($banks as $bank) {
             foreach ($categories as $category) {
                 $variation = rand(-200, 500); 
-                // Randomly set active or inactive (mostly active)
-                $isActive = rand(1, 10) > 3; // 70% active
+                // Make all catalogs active by default
+                $isActive = true;
                 
                 // For trash, give it a small default value instead of 0
                 $basePrice = $category->name === 'trash' ? 200 : $basePrices[$category->name];

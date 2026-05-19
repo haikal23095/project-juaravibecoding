@@ -11,8 +11,7 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'waste_bank_id', 'waste_category_id', 
-        'weight_kg', 'total_earnings', 'scan_method', 'status'
+        'user_id', 'waste_bank_id', 'total_earnings', 'status'
     ];
 
     public function user(): BelongsTo
@@ -25,8 +24,8 @@ class Transaction extends Model
         return $this->belongsTo(WasteBank::class);
     }
 
-    public function wasteCategory(): BelongsTo
+    public function details()
     {
-        return $this->belongsTo(WasteCategory::class);
+        return $this->hasMany(TransactionDetail::class);
     }
 }

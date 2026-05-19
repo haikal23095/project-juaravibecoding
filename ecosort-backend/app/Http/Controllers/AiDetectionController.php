@@ -26,6 +26,11 @@ class AiDetectionController extends Controller
             )->post($aiServiceUrl);
 
             if ($response->successful()) {
+                $user = $request->user('sanctum');
+                if ($user) {
+                    $user->increment('scan_count');
+                }
+
                 return response()->json([
                     'status' => 'success',
                     'data' => $response->json()

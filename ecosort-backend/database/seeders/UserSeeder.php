@@ -33,13 +33,34 @@ class UserSeeder extends Seeder
         ]);
         $manager2->assignRole('bank_sampah');
 
-        for ($i = 1; $i <= 3; $i++) {
-            $user = User::create([
-                'name' => "User {$i}",
-                'email' => "user{$i}@ecosort.test",
-                'password' => Hash::make('password'),
-            ]);
-            $user->assignRole('user');
-        }
+        $user1 = User::create([
+            'name' => "Reyhan Fauzan",
+            'email' => "user1@ecosort.test",
+            'password' => Hash::make('password'),
+            'points' => 12450,
+            'balance' => 245500.00,
+            'scan_count' => 124,
+        ]);
+        $user1->assignRole('user');
+
+        $user2 = User::create([
+            'name' => "User 2",
+            'email' => "user2@ecosort.test",
+            'password' => Hash::make('password'),
+            'points' => 5000,
+            'balance' => 98000.00,
+            'scan_count' => 48,
+        ]);
+        $user2->assignRole('user');
+
+        $user3 = User::create([
+            'name' => "User 3",
+            'email' => "user3@ecosort.test",
+            'password' => Hash::make('password'),
+            'points' => 0,
+            'balance' => 0.00,
+            'scan_count' => 0,
+        ]);
+        $user3->assignRole('user');
     }
 }
