@@ -89,4 +89,53 @@ class WasteBankController extends Controller
             'data' => $wasteBank
         ]);
     }
+
+    public function adminStore(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'is_active' => 'required|boolean',
+            'manager_id' => 'nullable|exists:users,id',
+        ]);
+        
+        $wasteBank = WasteBank::create($validated);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Waste bank created successfully',
+            'data' => $wasteBank->load('manager')
+        ]);
+    }
+
+    public function adminUpdate(Request $request, $id): JsonResponse
+    {
+        $wasteBank = WasteBank::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'is_active' => 'required|boolean',
+            'manager_id' => 'nullable|exists:users,id',
+        ]);
+        
+        $wasteBank->update($validated);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Waste bank updated successfully',
+            'data' => $wasteBank->load('manager')
+        ]);
+    }
+
+    public function adminDestroy($id): JsonResponse
+    {
+        $wasteBank = WasteBank::findOrFail($id);
+        $wasteBank->delete();
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Waste bank deleted successfully'
+        ]);
+    }
 }
