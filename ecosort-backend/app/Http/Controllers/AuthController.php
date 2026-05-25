@@ -54,6 +54,14 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if ($user->status === 'suspend') {
+            $adminEmail = User::role('super_admin')->first()?->email ?? 'superadmin@ecosort.test';
+            return response()->json([
+                'status' => 'error',
+                'message' => "Akun Anda telah ditangguhkan karena melanggar ketentuan. Silakan hubungi via email: {$adminEmail} untuk klarifikasi."
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         // Map spatie role to frontend role
@@ -94,6 +102,14 @@ class AuthController extends Controller
             $name = $firebaseUser->displayName ?? 'User';
 
             $user = User::where('email', $email)->first();
+
+            if ($user && $user->status === 'suspend') {
+                $adminEmail = User::role('super_admin')->first()?->email ?? 'superadmin@ecosort.test';
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Akun Anda telah ditangguhkan karena melanggar ketentuan. Silakan hubungi via email: {$adminEmail} untuk klarifikasi."
+                ], 403);
+            }
 
             if (!$user) {
                 $role = $request->role ?? 'user';

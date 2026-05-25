@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users', [AdminController::class, 'storeUser']);
     Route::put('/users/{id}', [AdminController::class, 'updateUser']);
     Route::delete('/users/{id}', [AdminController::class, 'destroyUser']);
+    Route::patch('/users/{id}/status', [AdminController::class, 'toggleStatus']);
 
     // Waste Bank / Location Management (Admin)
     Route::post('/waste-banks', [WasteBankController::class, 'adminStore']);

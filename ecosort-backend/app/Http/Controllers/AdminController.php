@@ -151,4 +151,21 @@ class AdminController extends Controller
             'message' => 'User deleted successfully'
         ]);
     }
+
+    public function toggleStatus(Request $request, $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+        $validated = $request->validate([
+            'status' => 'required|in:active,suspend'
+        ]);
+        
+        $user->status = $validated['status'];
+        $user->save();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Status pengguna berhasil diperbarui.',
+            'data' => $user
+        ]);
+    }
 }

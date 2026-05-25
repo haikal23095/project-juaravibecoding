@@ -13,7 +13,11 @@ class WithdrawalController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        if ($user->hasRole('bank_sampah')) {
+        if ($user->hasRole('super_admin')) {
+            $withdrawals = Withdrawal::with(['user', 'wasteBank'])
+                ->latest()
+                ->get();
+        } else if ($user->hasRole('bank_sampah')) {
             $wasteBank = WasteBank::where('manager_id', $user->id)->first();
             if (!$wasteBank) {
                 return response()->json(['status' => 'success', 'data' => []]);
@@ -50,7 +54,7 @@ class WithdrawalController extends Controller
             ], 400);
         }
 
-        $wasteBankId = $validated['waste_bank_id'];
+        $wasteBankId = $validated['waste_bank_id'] ?? null;
         if (!$wasteBankId) {
             $defaultBank = WasteBank::where('is_active', true)->first();
             if (!$defaultBank) {

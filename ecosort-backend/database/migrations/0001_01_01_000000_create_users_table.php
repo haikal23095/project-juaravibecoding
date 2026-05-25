@@ -19,6 +19,7 @@ return new class extends Migration
             $table->unsignedInteger('points')->default(0);
             $table->decimal('balance', 12, 2)->default(0.00);
             $table->unsignedInteger('scan_count')->default(0);
+            $table->enum('status', ['active', 'suspend'])->default('active');
             $table->rememberToken();
             $table->timestamps();
         });
