@@ -159,10 +159,21 @@ class TransactionController extends Controller
         
         $wasteBank = \App\Models\WasteBank::where('manager_id', $user->id)->first();
         if (!$wasteBank) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Anda tidak terdaftar sebagai pengelola bank sampah aktif.'
-            ], 403);
+            if ($user->hasRole('bank_sampah')) {
+                $wasteBank = \App\Models\WasteBank::create([
+                    'manager_id' => $user->id,
+                    'name' => 'Bank Sampah ' . $user->name,
+                    'address' => 'Jl. Kebon Jeruk No. 10, Jakarta Barat',
+                    'latitude' => -6.18840000,
+                    'longitude' => 106.76480000,
+                    'is_active' => true,
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak terdaftar sebagai pengelola bank sampah aktif.'
+                ], 403);
+            }
         }
 
         // 1. Total Nasabah (unik) yang pernah setor (status completed) di bank sampah ini

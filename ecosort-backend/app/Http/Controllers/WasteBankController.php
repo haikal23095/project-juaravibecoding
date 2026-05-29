@@ -24,13 +24,24 @@ class WasteBankController extends Controller
         $user = $request->user();
         $wasteBank = WasteBank::where('manager_id', $user->id)->first();
         if (!$wasteBank) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Anda tidak terdaftar sebagai pengelola bank sampah aktif.'
-            ], 403);
+            if ($user->hasRole('bank_sampah')) {
+                $wasteBank = WasteBank::create([
+                    'manager_id' => $user->id,
+                    'name' => 'Bank Sampah ' . $user->name,
+                    'address' => 'Jl. Kebon Jeruk No. 10, Jakarta Barat',
+                    'latitude' => -6.18840000,
+                    'longitude' => 106.76480000,
+                    'is_active' => true,
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak terdaftar sebagai pengelola bank sampah aktif.'
+                ], 403);
+            }
         }
 
-        $categories = \App\Models\WasteCategory::all();
+        $categories = \App\Models\WasteCategory::where('waste_bank_id', $wasteBank->id)->get();
 
         $stock = DB::table('transaction_details')
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
@@ -65,21 +76,36 @@ class WasteBankController extends Controller
         $wasteBank = WasteBank::where('manager_id', $user->id)->first();
         
         if (!$wasteBank) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Anda tidak terdaftar sebagai pengelola bank sampah aktif.'
-            ], 403);
+            if ($user->hasRole('bank_sampah')) {
+                $wasteBank = WasteBank::create([
+                    'manager_id' => $user->id,
+                    'name' => 'Bank Sampah ' . $user->name,
+                    'address' => 'Jl. Kebon Jeruk No. 10, Jakarta Barat',
+                    'latitude' => -6.18840000,
+                    'longitude' => 106.76480000,
+                    'is_active' => true,
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak terdaftar sebagai pengelola bank sampah aktif.'
+                ], 403);
+            }
         }
 
         $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'nullable|string',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
             'is_active' => 'required|boolean'
         ]);
 
         $wasteBank->update([
             'name' => $request->name,
             'address' => $request->address,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
             'is_active' => $request->is_active
         ]);
 

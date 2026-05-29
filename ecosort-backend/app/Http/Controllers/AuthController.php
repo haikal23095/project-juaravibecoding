@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\WasteBank;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -28,6 +29,14 @@ class AuthController extends Controller
 
         if ($request->role === 'manager') {
             $user->assignRole('bank_sampah');
+            WasteBank::create([
+                'manager_id' => $user->id,
+                'name' => 'Bank Sampah ' . $user->name,
+                'address' => 'Jl. Kebon Jeruk No. 10, Jakarta Barat',
+                'latitude' => -6.18840000,
+                'longitude' => 106.76480000,
+                'is_active' => true,
+            ]);
         } else {
             $user->assignRole('user');
         }
@@ -89,7 +98,7 @@ class AuthController extends Controller
         $request->validate([
             'idToken' => 'required|string',
             'role' => 'nullable|in:user,manager',
-            'businessId' => 'nullable|string'
+            'businessId' => 'required_if:role,manager|nullable|string'
         ]);
 
         try {
@@ -111,8 +120,9 @@ class AuthController extends Controller
                 ], 403);
             }
 
+            $role = $request->role ?? 'user';
+
             if (!$user) {
-                $role = $request->role ?? 'user';
                 $user = User::create([
                     'name' => $name,
                     'email' => $email,
@@ -122,8 +132,35 @@ class AuthController extends Controller
 
                 if ($role === 'manager') {
                     $user->assignRole('bank_sampah');
+                    WasteBank::create([
+                        'manager_id' => $user->id,
+                        'name' => 'Bank Sampah ' . $user->name,
+                        'address' => 'Jl. Kebon Jeruk No. 10, Jakarta Barat',
+                        'latitude' => -6.18840000,
+                        'longitude' => 106.76480000,
+                        'is_active' => true,
+                    ]);
                 } else {
                     $user->assignRole('user');
+                }
+            } else {
+                // If user exists, but they explicitly register as a manager and do not have the bank_sampah role yet, elevate them!
+                if ($role === 'manager' && !$user->hasRole('bank_sampah')) {
+                    $user->update([
+                        'business_id' => $request->businessId
+                    ]);
+                    $user->syncRoles(['bank_sampah']); // Assign bank_sampah and remove user role
+                    
+                    if (!WasteBank::where('manager_id', $user->id)->exists()) {
+                        WasteBank::create([
+                            'manager_id' => $user->id,
+                            'name' => 'Bank Sampah ' . $user->name,
+                            'address' => 'Jl. Kebon Jeruk No. 10, Jakarta Barat',
+                            'latitude' => -6.18840000,
+                            'longitude' => 106.76480000,
+                            'is_active' => true,
+                        ]);
+                    }
                 }
             }
 
